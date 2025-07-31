@@ -4,44 +4,100 @@
   <title>Budget App – INDU CODES</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <style>
-    body {font-family:sans-serif; background:#f4f4f4; margin:0; padding:20px;
-      display:flex; justify-content:center; align-items:center; height:100vh;}
-    .container {max-width:400px; width:100%; background:white; border-radius:10px;
-      padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
-    .center {text-align:center;}
-    button {cursor:pointer; padding:10px 20px; border:none; border-radius:6px;
-      background:#4285f4; color:white; font-size:16px; margin:5px;}
-    .top-box {background:#e0f7fa; padding:15px; border-radius:6px;
-      text-align:center; font-size:20px; font-weight:bold; margin-bottom:20px;}
-    .popup {position:fixed; top:0; left:0; width:100%; height:100%;
-      background:rgba(0,0,0,0.5); justify-content:center; align-items:center; display:none;}
-    .popup-content {background:white; padding:20px; border-radius:8px;
-      width:90%; max-width:300px; text-align:center;}
-    input, select {width:100%; padding:8px; margin:8px 0; border:1px solid #ccc; border-radius:4px;}
-    .expense-list {margin:20px 0;}
-    .expense-item {background:#f1f1f1; padding:10px; border-radius:4px; margin-bottom:6px;}
-    footer {font-size:14px; color:#777; text-align:center; margin-top:20px;}
-    footer a {color:#0077cc; text-decoration:none;}
-    .share-button {background:#28a745;}
-    .reset-button {background:#d9534f;}
+    body {
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      background: #fef9f3;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      max-width: 420px;
+      width: 100%;
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .center { text-align: center; }
+    button {
+      cursor: pointer;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #f48fb1;
+      color: white;
+      font-size: 16px;
+      margin: 6px;
+      transition: 0.2s ease;
+    }
+    button:hover {
+      background: #ec407a;
+    }
+    .top-box {
+      background: #fce4ec;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      box-shadow: inset 0 0 5px #ccc;
+    }
+    .popup {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4); display: none;
+      justify-content: center; align-items: center;
+    }
+    .popup-content {
+      background: white; padding: 20px;
+      border-radius: 10px; width: 90%; max-width: 300px;
+      text-align: center; box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, select {
+      width: 100%; padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+    .expense-list {
+      margin: 20px 0;
+    }
+    .expense-item {
+      background: #fff3e0;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    footer {
+      font-size: 14px;
+      color: #777;
+      text-align: center;
+      margin-top: 20px;
+    }
+    footer a { color: #0077cc; text-decoration: none; }
+    .share-button { background: #4caf50; }
+    .reset-button { background: #e53935; }
   </style>
 </head>
 <body>
   <div class="container">
     <div id="loginDiv" class="center">
-      <img src="https://developers.google.com/identity/images/g-logo.png" width="50">
-      <br><br>
+      <img src="https://developers.google.com/identity/images/g-logo.png" width="50"><br><br>
       <button onclick="googleLogin()">Log in with Google</button>
     </div>
 
     <div id="appDiv" style="display:none;">
       <div class="top-box" id="balanceDisplay">Balance: ₹0</div>
-      <div class="center">
+      <div class="center" id="buttonsSection">
         <button onclick="openAddPopup()">➕ Add Expense</button>
         <button class="reset-button" onclick="confirmReset()">Reset</button>
       </div>
       <div class="expense-list" id="expenseList"></div>
-      <button class="share-button" onclick="copyShareLink()">🔗 Copy Share Link</button>
+      <div class="center"><button class="share-button" id="shareBtn" onclick="copyShareLink()">🔗 Copy Share Link</button></div>
     </div>
 
     <div class="popup" id="addPopup">
@@ -57,16 +113,14 @@
         </select>
         <input type="number" id="qty" placeholder="Quantity (persons)">
         <input type="number" id="unitCost" placeholder="Cost per person">
-        <button onclick="saveEntry()">Add</button>
-        <br><br>
+        <button onclick="saveEntry()">Add</button><br><br>
         <button onclick="closeAddPopup()">Cancel</button>
       </div>
     </div>
   </div>
 
- 
 
-  <!-- Firebase compat SDK -->
+
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -89,14 +143,13 @@
     let userUID = null, fileDoc = null, balance = 0;
 
     if (shared) {
-      // view-only
       document.getElementById('loginDiv').style.display = 'none';
       document.getElementById('appDiv').style.display = 'block';
-      document.querySelector('.share-button').style.display = 'none';
+      document.getElementById('shareBtn').style.display = 'none';
+      document.getElementById('buttonsSection').style.display = 'none';
       loadShared(shared);
     } else {
       auth.onAuthStateChanged(user => {
-        console.log('Auth change:', user);
         if (user) {
           userUID = user.uid;
           document.getElementById('loginDiv').style.display = 'none';
@@ -108,52 +161,50 @@
 
     function googleLogin() {
       auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
-        .then(res => console.log('Logged in:', res.user.email))
         .catch(e => alert("Login failed: " + e.message));
     }
 
     function setupUserDoc() {
       fileDoc = db.collection('budgets').doc(userUID);
-      fileDoc.get()
-        .then(d => {
-          if (!d.exists) {
-            balance = parseFloat(prompt("Enter total allocated money:") || 0);
-            return fileDoc.set({ balance });
-          } else {
-            balance = d.data().balance;
-          }
-        })
-        .then(() => {
-          updateBalanceUI();
-          loadEntries();
-        })
-        .catch(e => alert("Setup failed: " + e.message));
+      fileDoc.get().then(d => {
+        if (!d.exists) {
+          balance = parseFloat(prompt("Enter total allocated money:") || 0);
+          return fileDoc.set({ balance });
+        } else {
+          balance = d.data().balance;
+        }
+      }).then(() => {
+        updateBalanceUI();
+        loadEntries();
+      }).catch(e => alert("Setup failed: " + e.message));
     }
 
-    function openAddPopup() { document.getElementById('addPopup').style.display = 'flex'; }
-    function closeAddPopup() { document.getElementById('addPopup').style.display = 'none'; }
+    function openAddPopup() {
+      document.getElementById('addPopup').style.display = 'flex';
+    }
+    function closeAddPopup() {
+      document.getElementById('addPopup').style.display = 'none';
+    }
 
     function saveEntry() {
       const type = document.getElementById('foodType').value;
       const q = parseInt(document.getElementById('qty').value);
       const c = parseFloat(document.getElementById('unitCost').value);
       if (!type || isNaN(q) || isNaN(c)) {
-        return alert("Please fill pop-up fields");
+        return alert("Please fill in all fields.");
       }
       const total = q * c;
       balance -= total;
 
-      fileDoc.update({ balance })
-        .catch(e => alert("Balance update failed: " + e.message));
-
-      fileDoc.collection('expenses').add({ type, qty: q, unitCost: c, total,
-        time: firebase.firestore.FieldValue.serverTimestamp() })
-        .then(() => {
-          updateBalanceUI();
-          loadEntries();
-          closeAddPopup();
-        })
-        .catch(e => alert("Save entry failed: " + e.message));
+      fileDoc.update({ balance });
+      fileDoc.collection('expenses').add({
+        type, qty: q, unitCost: c, total,
+        time: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        updateBalanceUI();
+        loadEntries();
+        closeAddPopup();
+      }).catch(e => alert("Error saving entry: " + e.message));
     }
 
     function updateBalanceUI() {
@@ -166,7 +217,6 @@
       if (!fileDoc) return;
       fileDoc.collection('expenses').orderBy('time','desc').get()
         .then(snap => {
-          console.log("Fetched entries:", snap.size);
           snap.forEach(doc => {
             const d = doc.data();
             const div = document.createElement('div');
@@ -174,44 +224,39 @@
             div.innerText = `${d.type} • ₹${d.total.toFixed(2)} (${d.qty} × ₹${d.unitCost.toFixed(2)})`;
             list.appendChild(div);
           });
-        })
-        .catch(e => alert("Load entries failed: " + e.message));
+        });
     }
 
     function confirmReset() {
-      if (!confirm("Do you really want to reset everything?")) return;
+      if (!confirm("Reset all data?")) return;
       const newBal = parseFloat(prompt("Enter new total money:") || 0);
       balance = newBal;
-      const batch = db.batch();
       fileDoc.set({ balance });
       fileDoc.collection('expenses').get().then(snap => {
+        const batch = db.batch();
         snap.forEach(doc => batch.delete(doc.ref));
         return batch.commit();
-      })
-      .then(() => {
+      }).then(() => {
         updateBalanceUI();
         loadEntries();
-      })
-      .catch(e => alert("Reset failed: " + e.message));
+      });
     }
 
     function copyShareLink() {
       if (!userUID) return;
       const url = `${location.origin}${location.pathname}?shared=${userUID}`;
       navigator.clipboard.writeText(url)
-        .then(() => alert("Link copied"))
-        .catch(e => alert("Clipboard failed: " + e.message));
+        .then(() => alert("View-only link copied"))
+        .catch(e => alert("Copy failed: " + e.message));
     }
 
     function loadShared(uid) {
       fileDoc = db.collection('budgets').doc(uid);
-      fileDoc.get()
-        .then(d => {
-          balance = d.exists ? d.data().balance : 0;
-          updateBalanceUI();
-        })
-        .then(loadEntries)
-        .catch(e => alert("Load shared data failed: " + e.message));
+      fileDoc.get().then(d => {
+        balance = d.exists ? d.data().balance : 0;
+        updateBalanceUI();
+        loadEntries();
+      });
     }
   </script>
 </body>
