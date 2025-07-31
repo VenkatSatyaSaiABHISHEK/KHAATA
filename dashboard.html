@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Meal Tracker Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: Arial; margin: 20px; background: #fff; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; }
+    .btn { margin-left: 10px; padding: 8px 15px; border: none; background: #4285F4; color: #fff; border-radius: 5px; cursor: pointer; }
+    #entries { margin-top: 30px; }
+    .entry { margin: 10px 0; padding: 10px; background: #f1f1f1; border-radius: 8px; }
+    #popup { display: none; position: fixed; top: 20%; left: 30%; width: 40%; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.2); }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; background: gray; color: white; text-align: center; line-height: 30px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div>
+      <strong id="fileInfo"></strong>
+    </div>
+    <div>
+      <button class="btn" onclick="shareView()">Share</button>
+      <button class="btn" onclick="resetFile()">Reset</button>
+      <button class="btn" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <button class="btn" onclick="showPopup()">➕ Add Meal</button>
+  <div id="entries"></div>
+
+  <div id="popup">
+    <h3>Add Meal Entry</h3>
+    <select id="mealType">
+      <option>Breakfast</option>
+      <option>Lunch</option>
+      <option>Dinner</option>
+      <option>Snacks</option>
+    </select><br/><br/>
+    <input id="quantity" type="number" placeholder="Quantity" /><br/><br/>
+    <input id="costPerMeal" type="number" placeholder="Cost per meal" /><br/><br/>
+    <button class="btn" onclick="addMeal()">Add</button>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdrRvxt8P10sT0ZteaziN5TCT-FuiNnKE",
+      authDomain: "khub-bdabd.firebaseapp.com",
+      projectId: "khub-bdabd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const fileName = localStorage.getItem("file");
+    const fileRef = db.collection("files").doc(fileName);
+    const entriesRef = fileRef.collection("entries");
+
+    fileRef.get().then(doc => {
+      const data = doc.data();
+      document.getElementById("fileInfo").innerText = `${data.fileName} | Total: ₹${data.totalMoney} | Left: ₹${data.remaining}`;
+    });
+
+    entriesRef.orderBy("time").onSnapshot(snapshot => {
+      const entries = document.getElementById("entries");
+      entries.innerHTML = "";
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        entries.innerHTML += `<div class="entry">
+          <strong>${d.type}</strong> - ${d.qty} × ₹${d.cost} = ₹${d.total}
+        </div>`;
+      });
+    });
+
+    function showPopup() {
+      document.getElementById("popup").style.display = "block";
+    }
+
+    function addMeal() {
+      const type = document.getElementById("mealType").value;
+      const qty = Number(document.getElementById("quantity").value);
+      const cost = Number(document.getElementById("costPerMeal").value);
+      const total = qty * cost;
+
+      fileRef.get().then(doc => {
+        const data = doc.data();
+        const newRemaining = data.remaining - total;
+        fileRef.update({ remaining: newRemaining });
+        entriesRef.add({ type, qty, cost, total, time: Date.now() });
+        document.getElementById("popup").style.display = "none";
+      });
+    }
+
+    function resetFile() {
+      if (confirm("Do you really want to reset all data?")) {
+        entriesRef.get().then(snapshot => {
+          snapshot.forEach(doc => doc.ref.delete());
+        });
+        fileRef.get().then(doc => {
+          fileRef.update({ remaining: doc.data().totalMoney });
+        });
+      }
+    }
+
+    function shareView() {
+      window.open(`shared.html?file=${fileName}`, "_blank");
+    }
+
+    function logout() {
+      auth.signOut().then(() => {
+        localStorage.removeItem("file");
+        window.location.href = "index.html";
+      });
+    }
+  </script>
+</body>
+</html>
