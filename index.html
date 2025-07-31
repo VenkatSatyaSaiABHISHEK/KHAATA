@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Budget App - INDU CODES</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <style>
+    body { font-family: sans-serif; background:#f4f4f4; margin:0; padding:20px; display:flex; justify-content:center;  align-items: center; /* Vertically centers content */  height: 100vh; /* Full viewport */}
+    .container { max-width:400px; width:100%; background:white; border-radius:10px; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+    .center { text-align:center; }
+    button { cursor:pointer; padding:10px 20px; border:none; border-radius:6px; background:#4285f4; color:white; font-size:16px; }
+    button:disabled { background: #aaa; }
+    .top-box { background:#e0f7fa; padding:15px; border-radius:6px; text-align:center; font-size:20px; font-weight:bold; margin-bottom:20px; }
+    .content { display:none; }
+    .popup { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; display:none; }
+    .popup-content { background:white; padding:20px; border-radius:8px; width:90%; max-width:300px; }
+    input, select { width:100%; padding:8px; margin:8px 0; border:1px solid #ccc; border-radius:4px; }
+    .expense-list { margin:20px 0; }
+    .expense-item { background:#f1f1f1; padding:10px; border-radius:4px; margin-bottom:6px; }
+    footer { font-size:14px; color:#777; text-align:center; margin-top:20px; }
+    footer a { color:#0077cc; text-decoration:none; }
+    .share-button { background:#28a745; margin-top:10px; }
+    .reset-button { background:#d9534f; margin-left:10px; }
+    .login-section {
+    text-align: center;
+  }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Login screen -->
+    <div id="loginDiv" class="center">
+      <img src="https://developers.google.com/identity/images/g-logo.png" width="50" style="vertical-align:middle;">
+      <br><br>
+      <button onclick="googleLogin()">Log in with Google</button>
+    </div>
+
+    <!-- Main content -->
+    <div id="appDiv" class="content">
+      <div class="center top-box" id="balanceDisplay">Balance: ₹0</div>
+      <div class="center">
+        <button onclick="openAddPopup()">➕ Add Expense</button>
+        <button class="reset-button" onclick="confirmReset()">Reset</button>
+      </div>
+      <div class="expense-list" id="expenseList"></div>
+      <button class="share-button" onclick="copyShareLink()">🔗 Copy Share Link</button>
+    </div>
+
+    <!-- Add expense popup -->
+    <div class="popup" id="addPopup">
+      <div class="popup-content center">
+        <h3>Add Expense</h3>
+        <select id="foodType">
+          <option value="">Select Meal</option>
+          <option>Lunch</option>
+          <option>Dinner</option>
+          <option>Tiffin</option>
+          <option>Snacks</option>
+          <option>Other</option>
+        </select>
+        <input type="number" id="qty" placeholder="Quantity (number of persons)">
+        <input type="number" id="unitCost" placeholder="Cost per person">
+        <button onclick="saveEntry()">Add</button>
+        <br><br>
+        <button onclick="closeAddPopup()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Made by <strong>INDU CODES</strong> | <a href="https://yourwebsite.com" target="_blank">Visit Our Website</a>
+  </footer>
+
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdrRvxt8P10sT0ZteaziN5TCT-FuiNnKE",
+      authDomain: "khub-bdabd.firebaseapp.com",
+      projectId: "khub-bdabd",
+      storageBucket: "khub-bdabd.appspot.com",
+      messagingSenderId: "401713212611",
+      appId: "1:401713212611:web:d569d4a07fac761fb24676"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const shared = urlParams.get('shared');
+    let userUID = null, fileDoc = null, balance = 0;
+
+    if (shared) {
+      // view-only mode
+      document.getElementById('loginDiv').style.display = 'none';
+      document.getElementById('appDiv').style.display = 'block';
+      document.querySelector('.share-button').style.display = 'none';
+      loadShared(shared);
+    } else {
+      auth.onAuthStateChanged(user => {
+        if (user) {
+          userUID = user.uid;
+          document.getElementById('loginDiv').style.display = 'none';
+          document.getElementById('appDiv').style.display = 'block';
+          setupUserDoc();
+        }
+      });
+    }
+
+    function googleLogin() {
+      auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => alert("Login failed: "+e.message));
+    }
+
+    function setupUserDoc() {
+      fileDoc = db.collection('budgets').doc(userUID);
+      fileDoc.get().then(d => {
+        if (!d.exists) {
+          balance = parseFloat(prompt("Enter total allocated money:"));
+          fileDoc.set({ balance });
+        } else {
+          balance = d.data().balance;
+        }
+        updateBalanceUI();
+        loadEntries();
+      });
+    }
+
+    function openAddPopup() { document.getElementById('addPopup').style.display = 'flex'; }
+    function closeAddPopup() { document.getElementById('addPopup').style.display = 'none'; }
+
+    function saveEntry() {
+      const type = document.getElementById('foodType').value;
+      const q = parseInt(document.getElementById('qty').value);
+      const c = parseFloat(document.getElementById('unitCost').value);
+      if (!type || isNaN(q) || isNaN(c)) return alert("Fill inside pop‑up correctly");
+      const total = q * c;
+      balance -= total;
+      fileDoc.update({ balance });
+      fileDoc.collection('expenses').add({ type, qty:q, unitCost:c, total, time: firebase.firestore.FieldValue.serverTimestamp() });
+      updateBalanceUI();
+      loadEntries();
+      closeAddPopup();
+    }
+
+    function updateBalanceUI() {
+      document.getElementById('balanceDisplay').innerText = 'Balance: ₹' + balance.toFixed(2);
+    }
+
+    function loadEntries() {
+      const list = document.getElementById('expenseList');
+      list.innerHTML = '';
+      fileDoc.collection('expenses').orderBy('time','desc').get().then(snap =>
+        snap.forEach(doc => {
+          const d = doc.data();
+          const div = document.createElement('div');
+          div.className = 'expense-item';
+          div.innerText = `${d.type} • ₹${d.total.toFixed(2)} (${d.qty} × ₹${d.unitCost.toFixed(2)})`;
+          list.appendChild(div);
+        })
+      );
+    }
+
+    function confirmReset() {
+      if (!confirm("Do you really want to reset all data?")) return;
+      balance = parseFloat(prompt("Enter new total allocated money:"));
+      fileDoc.set({ balance });
+      fileDoc.collection('expenses').get().then(snap => snap.forEach(d => d.ref.delete())).then(() => {
+        updateBalanceUI();
+        loadEntries();
+      });
+    }
+
+    function copyShareLink() {
+      const url = `${location.origin}${location.pathname}?shared=${userUID}`;
+      navigator.clipboard.writeText(url).then(()=> alert("Share link copied"));
+    }
+
+    function loadShared(uid) {
+      fileDoc = db.collection('budgets').doc(uid);
+      fileDoc.get().then(d => {
+        balance = d.exists ? d.data().balance : 0;
+        updateBalanceUI();
+        fileDoc.collection('expenses').orderBy('time','desc').get().then(snap => {
+          snap.forEach(doc => {
+            const d = doc.data();
+            const div = document.createElement('div');
+            div.className = 'expense-item';
+            div.innerText = `${d.type} • ₹${d.total.toFixed(2)} (${d.qty} × ₹${d.unitCost.toFixed(2)})`;
+            document.getElementById('expenseList').appendChild(div);
+          });
+        });
+      });
+    }
+  </script>
+</body>
+</html>
