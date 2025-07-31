@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Shared Meal Tracker</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: Arial; margin: 30px; background: #f8f8f8; }
+    .entry { margin: 10px 0; padding: 10px; background: #ffffff; border-left: 4px solid #4285F4; }
+  </style>
+</head>
+<body>
+  <h2 id="fileInfo"></h2>
+  <div id="entries"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdrRvxt8P10sT0ZteaziN5TCT-FuiNnKE",
+      authDomain: "khub-bdabd.firebaseapp.com",
+      projectId: "khub-bdabd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const params = new URLSearchParams(window.location.search);
+    const fileName = params.get("file");
+    const fileRef = db.collection("files").doc(fileName);
+
+    fileRef.get().then(doc => {
+      const data = doc.data();
+      document.getElementById("fileInfo").innerText = `${data.fileName} | Total: ₹${data.totalMoney} | Left: ₹${data.remaining}`;
+    });
+
+    fileRef.collection("entries").orderBy("time").onSnapshot(snapshot => {
+      const entries = document.getElementById("entries");
+      entries.innerHTML = "";
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        entries.innerHTML += `<div class="entry">
+          <strong>${d.type}</strong> - ${d.qty} × ₹${d.cost} = ₹${d.total}
+        </div>`;
+      });
+    });
+  </script>
+</body>
+</html>
